@@ -1,0 +1,112 @@
+@import "tailwindcss";
+
+/*
+ * CampusHold design tokens
+ * ------------------------------------------------------------
+ * One ink colour, one accent, neutral surfaces, semantic states.
+ * Everything in the UI should resolve to these tokens.
+ */
+@theme {
+  /* Typography */
+  --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  --text-display: clamp(2.75rem, 1.6rem + 4.6vw, 4.75rem);
+  --text-display--line-height: 1.02;
+  --text-display--letter-spacing: -0.045em;
+  --text-headline: clamp(2rem, 1.4rem + 2.2vw, 3rem);
+  --text-headline--line-height: 1.08;
+  --text-headline--letter-spacing: -0.035em;
+
+  /* Colour: ink & neutrals */
+  --color-ink: #0b1220;
+  --color-ink-soft: #1c2433;
+  --color-muted: #5b6271;
+  --color-subtle: #8a909c;
+  --color-line: #e8e8e5;
+  --color-line-strong: #d6d6d2;
+  --color-canvas: #ffffff;
+  --color-surface: #f6f6f3;
+  --color-surface-strong: #eeeeea;
+
+  /* Colour: accent (used sparingly — highlights, active states) */
+  --color-accent: #d4f36a;
+  --color-accent-strong: #b9dc3a;
+  --color-accent-ink: #26310a;
+
+  /* Colour: semantic states */
+  --color-success: #15803d;
+  --color-success-soft: #e8f5ec;
+  --color-warning: #b45309;
+  --color-warning-soft: #fdf3e2;
+  --color-danger: #b91c1c;
+  --color-danger-soft: #fdecec;
+  --color-info: #1d4ed8;
+  --color-info-soft: #e9effd;
+
+  /* Shape & depth */
+  --radius-card: 1.25rem;
+  --radius-panel: 1.75rem;
+  --shadow-card: 0 1px 2px rgb(11 18 32 / 0.04), 0 8px 24px -12px rgb(11 18 32 / 0.12);
+  --shadow-float: 0 2px 4px rgb(11 18 32 / 0.04), 0 24px 48px -20px rgb(11 18 32 / 0.22);
+
+  /* Layout */
+  --container-page: 72rem;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-feature-settings: "ss01", "cv11";
+  }
+
+  ::selection {
+    background: var(--color-accent);
+    color: var(--color-ink);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-ink);
+    outline-offset: 3px;
+    border-radius: 6px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@utility container-page {
+  width: 100%;
+  max-width: var(--container-page);
+  margin-inline: auto;
+  padding-inline: 1.25rem;
+
+  @media (width >= 48rem) {
+    padding-inline: 2rem;
+  }
+}
+
+/* Faint grid used behind the hero, as in the references */
+@utility bg-grid {
+  background-image:
+    linear-gradient(to right, rgb(11 18 32 / 0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(11 18 32 / 0.045) 1px, transparent 1px);
+  background-size: 56px 56px;
+}
