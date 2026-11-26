@@ -1,36 +1,47 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# CampusHold
 
-## Getting Started
+A freelance marketplace with a tracked, payment-coordinated workflow: agree the scope, fund the job, deliver, approve, release.
 
-First, run the development server:
+> **Current stage: 2 — frontend with mock data.** No backend, no real accounts, no real payments. Everything financial is labelled **Simulated**.
+
+## Running locally
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+pnpm install
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000. The landing page is at `/`; the app starts at `/dashboard`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Trying the workflows
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **As a visitor:** log out (sidebar, bottom left), then browse `/explore` and open a service. Requesting one asks you to sign up or log in, then returns you to the request.
+- **As a client:** pick a service package, describe what you need, and it becomes a job request with the scope, price, deadline and revisions already agreed.
+- **As a freelancer:** create and manage listings under **My services** (Working mode).
 
-## Learn More
+You're signed in as a demo user (Tobi Essien) who both hires and freelances. Switch between **Hiring** and **Working** at the top of the sidebar.
 
-To learn more about Next.js, take a look at the following resources:
+- **Every job workspace has Simulation controls** (dashed panel, bottom right). They let you act as the other party or the payment provider: accept a request, submit a delivery, confirm or fail a payment, settle funds, make a transfer succeed or fail.
+- **Auth screens accept any valid input.** Use password `wrongpassword` on login, or code `000000` on verification, to see the error states.
+- **Admin** (`/admin`) is visible to the demo user so disputes can be resolved and the ledger reconciled.
+- **State lives in `localStorage`.** Reset it from Settings → Security → Reset demo data.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Project structure
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+app/(marketing)     Public landing page
+app/(auth)          Sign up, log in, verification, password reset
+app/(app)           Signed-in app (browser-rendered in Stage 2)
+components/ui       Design system primitives
+components/*        Feature components (jobs, payments, disputes, admin…)
+lib/domain          Types, job state machine, payment states, next-action rules
+lib/store           Stage 2 mock store and pure state operations
+lib/mock            Seed data
+lib/validation      Zod schemas shared by forms (and the Stage 3 server)
+```
 
-## Deploy on Vercel
+The job lifecycle is enforced in one place: `lib/domain/job-machine.ts`. Balances are always derived from job and transaction records (`lib/domain/payment.ts`), never stored.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Environment
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Copy `.env.example` to `.env.local`. Payment provider keys are not used until Stage 4 and must never be committed.

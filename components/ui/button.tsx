@@ -3,7 +3,7 @@ import type { ComponentProps } from "react";
 import { cn } from "@/lib/cn";
 
 export type ButtonVariant = "primary" | "secondary" | "accent" | "ghost" | "inverse" | "outline-inverse";
-export type ButtonSize = "sm" | "md" | "lg";
+export type ButtonSize = "sm" | "md" | "lg" | "icon";
 
 const base =
   "inline-flex shrink-0 items-center justify-center gap-2 rounded-full font-medium whitespace-nowrap transition-colors duration-150 disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-4";
@@ -21,6 +21,7 @@ const sizes: Record<ButtonSize, string> = {
   sm: "h-9 px-4 text-sm",
   md: "h-11 px-5 text-[0.9375rem]",
   lg: "h-12 px-6 text-base",
+  icon: "size-10 text-sm",
 };
 
 export function buttonStyles({

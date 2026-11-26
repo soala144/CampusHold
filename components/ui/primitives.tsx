@@ -1,5 +1,8 @@
 import type { ComponentProps, ReactNode } from "react";
 import { cn } from "@/lib/cn";
+import type { Tone } from "@/lib/tone";
+
+export type { Tone };
 
 /* ---------- Layout ---------- */
 
@@ -73,8 +76,6 @@ export function Card({
 }
 
 /* ---------- Status ---------- */
-
-export type Tone = "neutral" | "success" | "warning" | "danger" | "info" | "accent";
 
 const tones: Record<Tone, string> = {
   neutral: "bg-surface text-muted",

@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { ButtonLink } from "@/components/ui/button";
 import { Logo } from "@/components/ui/logo";
 import { navLinks } from "./nav-links";
+import { HeaderActions } from "./header-actions";
 import { MobileMenu } from "./mobile-menu";
 
 export function SiteHeader() {
@@ -27,12 +27,7 @@ export function SiteHeader() {
 
         <div className="flex items-center gap-2">
           <div className="hidden items-center gap-2 sm:flex">
-            <ButtonLink href="/login" variant="secondary" size="sm">
-              Log in
-            </ButtonLink>
-            <ButtonLink href="/signup" size="sm">
-              Get started
-            </ButtonLink>
+            <HeaderActions />
           </div>
           <MobileMenu />
         </div>

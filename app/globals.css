@@ -110,3 +110,11 @@
     linear-gradient(to bottom, rgb(11 18 32 / 0.045) 1px, transparent 1px);
   background-size: 56px 56px;
 }
+
+/* Swipeable rows (chips, filters) without a visible scrollbar */
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}

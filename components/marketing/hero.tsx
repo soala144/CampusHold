@@ -33,8 +33,8 @@ export function Hero() {
             Get started
             <ArrowRight />
           </ButtonLink>
-          <ButtonLink href="#how-it-works" variant="secondary" size="lg">
-            See how it works
+          <ButtonLink href="/explore" variant="secondary" size="lg">
+            Explore services
           </ButtonLink>
         </div>
 
