@@ -114,6 +114,8 @@ export const users = pgTable(
     onboarded: boolean("onboarded").notNull().default(false),
     status: userStatus("status").notNull().default("active"),
     uiMode: uiMode("ui_mode").notNull().default("client"),
+    bachsAccountId: text("bachs_account_id"),
+    bachsPayoutStatus: text("bachs_payout_status"),
     freelancer: jsonb("freelancer").$type<FreelancerProfile>(),
     client: jsonb("client").$type<ClientProfile>(),
     joinedAt: ts("joined_at").notNull().defaultNow(),
@@ -261,11 +263,18 @@ export const transactions = pgTable(
       .references(() => users.id),
     reference: text("reference").notNull(),
     simulated: boolean("simulated").notNull().default(true),
+    provider: text("provider").notNull().default("simulated"),
+    providerRef: text("provider_ref"),
+    providerChargeId: text("provider_charge_id"),
+    checkoutUrl: text("checkout_url"),
+    /** Fee the provider kept from this payment, in kobo. */
+    providerFee: integer("provider_fee").notNull().default(0),
     createdAt: ts("created_at").notNull(),
     updatedAt: ts("updated_at").notNull(),
   },
   (t) => [
     uniqueIndex("tx_reference_idx").on(t.reference),
+    uniqueIndex("tx_provider_ref_idx").on(t.providerRef),
     index("tx_job_idx").on(t.jobId),
     index("tx_user_idx").on(t.userId),
     check("tx_amount_positive", sql`${t.amount} > 0`),
@@ -338,3 +347,15 @@ export const auditLog = pgTable(
   },
   (t) => [index("audit_created_idx").on(t.createdAt)],
 );
+
+/** Every webhook delivery we accept, so retries and duplicates are processed once. */
+export const webhookEvents = pgTable("webhook_events", {
+  id: text("id").primaryKey(),
+  provider: text("provider").notNull(),
+  type: text("type").notNull(),
+  payload: jsonb("payload").notNull(),
+  status: text("status").notNull().default("received"),
+  error: text("error"),
+  receivedAt: ts("received_at").notNull().defaultNow(),
+  processedAt: ts("processed_at"),
+});

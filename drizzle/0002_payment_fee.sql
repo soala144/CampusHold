@@ -1,0 +1,1 @@
+ALTER TABLE "transactions" ADD COLUMN "provider_fee" integer DEFAULT 0 NOT NULL;

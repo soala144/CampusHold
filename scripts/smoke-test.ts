@@ -19,6 +19,9 @@ import { loadWorld, persist, toSnapshot } from "../lib/server/world";
 import { rawOp } from "../lib/store/ops";
 import { HELD_PAYMENT_STATES } from "../lib/domain/payment";
 import type { DB } from "../lib/server/db";
+import { createHmac } from "node:crypto";
+import { verifyWebhook } from "../lib/server/bachs";
+import { cleanAttachments } from "../lib/server/cloudinary";
 
 const pg = new PGlite();
 const db = drizzle({ client: pg, schema }) as unknown as DB;
@@ -155,6 +158,53 @@ async function main() {
   });
   await test("database rejects a non-positive job budget", async () => {
     await assert.rejects(db.execute(sql`update jobs set budget = 0 where id = 'job_landing'`));
+  });
+
+  console.log("\nPayments and uploads");
+  const secret = "whsec_test";
+  const body = JSON.stringify({ id: "evt_1", type: "checkout.completed", data: {} });
+  const sign = (ts: number, b = body, s = secret) => createHmac("sha256", s).update(`${ts}.${b}`).digest("hex");
+  const nowMs = 1_800_000_000_000;
+  const ts = nowMs / 1000;
+  await test("webhook: valid V2 signature is accepted", async () => {
+    assert.ok(verifyWebhook(body, new Headers({ "x-bachs-signature-v2": `t=${ts},v1=${sign(ts)}` }), secret, nowMs));
+  });
+  await test("webhook: valid V1 headers are accepted", async () => {
+    assert.ok(verifyWebhook(body, new Headers({ "x-bachs-timestamp": String(ts), "x-bachs-signature": sign(ts) }), secret, nowMs));
+  });
+  await test("webhook: tampered body, wrong secret and stale timestamp are rejected", async () => {
+    const h = new Headers({ "x-bachs-signature-v2": `t=${ts},v1=${sign(ts)}` });
+    assert.equal(verifyWebhook(body.replace("evt_1", "evt_2"), h, secret, nowMs), false);
+    assert.equal(verifyWebhook(body, new Headers({ "x-bachs-signature-v2": `t=${ts},v1=${sign(ts, body, "other")}` }), secret, nowMs), false);
+    const stale = ts - 301;
+    assert.equal(verifyWebhook(body, new Headers({ "x-bachs-signature-v2": `t=${stale},v1=${sign(stale)}` }), secret, nowMs), false);
+    assert.equal(verifyWebhook(body, new Headers(), secret, nowMs), false);
+  });
+  await test("uploads: links outside the user's own folder are dropped", async () => {
+    process.env.CLOUDINARY_CLOUD_NAME = "demo";
+    process.env.CLOUDINARY_API_KEY = "k";
+    process.env.CLOUDINARY_API_SECRET = "s";
+    const own = "https://res.cloudinary.com/demo/image/upload/v1/campushold/u_me/files/a.png";
+    const other = "https://res.cloudinary.com/demo/image/upload/v1/campushold/u_ada/files/a.png";
+    const files = cleanAttachments(
+      [
+        { id: "f1", name: "a.png", sizeBytes: 10, url: own },
+        { id: "f2", name: "b.png", sizeBytes: 10, url: other },
+        { id: "f3", name: "c.png", sizeBytes: 10, url: "https://evil.example/x.png" },
+      ],
+      "u_me",
+    )!;
+    assert.deepEqual(files.map((f) => f.url), [own, undefined, undefined]);
+    assert.equal(cleanAttachments([{ id: 1 }], "u_me"), null);
+  });
+  await test("with Bachs on, clients can't mark a job funded directly", async () => {
+    process.env.PAYMENTS_PROVIDER = "bachs";
+    try {
+      assert.match((await perform("u_me", "jobAction", ["job_landing", "initiate_payment", { as: "client" }]))!, /payment page/);
+      assert.match((await perform("u_me", "jobAction", ["job_landing", "confirm_payment", { as: "system" }]))!, /permission/);
+    } finally {
+      delete process.env.PAYMENTS_PROVIDER;
+    }
   });
 
   console.log(`\n${passed} passed${process.exitCode ? ", some failed" : ""}.`);

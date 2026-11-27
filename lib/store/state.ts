@@ -21,6 +21,8 @@ export interface AppState {
   mode: Mode;
   /** True while payments are simulated (Stage 3). Enables the test controls. */
   simulation?: boolean;
+  /** Which payment rail is live: simulated money, or Bachs (sandbox or live). */
+  payments?: "simulated" | "bachs-sandbox" | "bachs-live";
   users: User[];
   jobs: Job[];
   services: Service[];

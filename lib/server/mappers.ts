@@ -37,6 +37,9 @@ export function userFromRow(r: Row<typeof schema.users>): User {
     verified: { email: r.emailVerified, phone: r.phoneVerified },
     status: r.status,
     onboarded: r.onboarded,
+    payouts: r.bachsAccountId
+      ? { accountId: r.bachsAccountId, status: (r.bachsPayoutStatus ?? "onboarding") as "onboarding" | "active" | "restricted" }
+      : undefined,
     joinedAt: iso(r.joinedAt),
     freelancer: r.freelancer ?? undefined,
     client: r.client ?? undefined,
@@ -155,11 +158,22 @@ export function threadToRow(jobId: string, t: ThreadItem): Insert<typeof schema.
 
 export const txFromRow = (r: Row<typeof schema.transactions>): Transaction => ({
   ...r,
-  simulated: true,
+  provider: r.provider as Transaction["provider"],
+  providerRef: r.providerRef ?? undefined,
+  providerChargeId: r.providerChargeId ?? undefined,
+  checkoutUrl: r.checkoutUrl ?? undefined,
+  providerFee: r.providerFee || undefined,
   createdAt: iso(r.createdAt),
   updatedAt: iso(r.updatedAt),
 });
-export const txToRow = (t: Transaction): Insert<typeof schema.transactions> => ({ ...t });
+export const txToRow = (t: Transaction): Insert<typeof schema.transactions> => ({
+  ...t,
+  provider: t.provider ?? "simulated",
+  providerRef: t.providerRef ?? null,
+  providerChargeId: t.providerChargeId ?? null,
+  checkoutUrl: t.checkoutUrl ?? null,
+  providerFee: t.providerFee ?? 0,
+});
 
 export const payoutFromRow = (r: Row<typeof schema.payoutAccounts>): PayoutAccount => ({ ...r, createdAt: iso(r.createdAt) });
 export const payoutToRow = (p: PayoutAccount): Insert<typeof schema.payoutAccounts> => ({ ...p });

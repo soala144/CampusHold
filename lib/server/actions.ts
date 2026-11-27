@@ -8,6 +8,7 @@ import { authorize, simulationEnabled } from "./authorize";
 import { getDb } from "./db";
 import { getSessionUser } from "./session";
 import { loadWorld, persist, toSnapshot } from "./world";
+import { paymentsMode, processDisputeRelease, processRefund, syncSettlement } from "./payments";
 
 export type PerformResult = { ok: true; snapshot: AppState } | { ok: false; error: string; snapshot: AppState | null };
 
@@ -15,7 +16,7 @@ export type PerformResult = { ok: true; snapshot: AppState } | { ok: false; erro
 export async function currentSnapshot(): Promise<AppState> {
   const user = await getSessionUser();
   const world = await loadWorld(getDb(), user);
-  return { ...toSnapshot(world), simulation: simulationEnabled() };
+  return { ...toSnapshot(world), simulation: simulationEnabled(), payments: paymentsMode() };
 }
 
 /** Polled by the browser for new messages and updates. */
@@ -65,8 +66,21 @@ export async function performOp(name: string, args: unknown[], ids: string[]): P
     error = "Something went wrong saving that. Please try again.";
   }
 
+  // With real payments, some operations imply money movement at Bachs.
+  if (!error && result && process.env.PAYMENTS_PROVIDER === "bachs" && name === "jobAction") {
+    const [jobId, action] = args as [string, string];
+    try {
+      if (action === "approve") await syncSettlement(jobId);
+      if (action === "resolve_dispute_refund") await processRefund(jobId);
+      if (action === "resolve_dispute_release") await processDisputeRelease(jobId);
+    } catch (e) {
+      console.error(`[payments:${action}]`, e);
+    }
+    return { ok: true, snapshot: await currentSnapshot() };
+  }
+
   // On success the saved state is already in memory; only reload after a failure.
-  if (!error && result) return { ok: true, snapshot: { ...toSnapshot(result), simulation: simulationEnabled() } };
+  if (!error && result) return { ok: true, snapshot: { ...toSnapshot(result), simulation: simulationEnabled(), payments: paymentsMode() } };
   const snapshot = await currentSnapshot().catch(() => null);
   return { ok: false, error: error ?? "Something went wrong.", snapshot };
 }

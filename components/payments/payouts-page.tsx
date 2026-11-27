@@ -11,6 +11,7 @@ import { Page, PageHeader, Panel } from "@/components/app/page-header";
 import { formatDate, formatMoney } from "@/lib/format";
 import { currentUser, ops, run, useAppState } from "@/lib/store";
 import { PayoutAccountForm } from "./payout-account-form";
+import { BachsPayouts } from "./bachs-payouts";
 
 export function PayoutsPage() {
   const s = useAppState();
@@ -37,6 +38,7 @@ export function PayoutsPage() {
     <Page className="max-w-3xl">
       <PageHeader back={{ href: "/wallet", label: "Earnings" }} title="Payout account" description="Where approved payments are sent." />
 
+      {s.payments && s.payments !== "simulated" ? <BachsPayouts me={me} /> : (
       <Panel title="Bank account" action={account && <StatusPill tone={account.status === "verified" ? "success" : "warning"}>{account.status === "verified" ? "Verified" : "Pending verification"}</StatusPill>}>
         {account && !editing ? (
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -78,6 +80,7 @@ export function PayoutsPage() {
           </Alert>
         )}
       </Panel>
+      )}
 
       <Panel title="Payout history" action={<SimulatedBadge />} className="mt-6" bodyClassName="p-0">
         {payouts.length === 0 ? (
@@ -106,6 +109,9 @@ export function PayoutsPage() {
       </Panel>
 
       <p className="mt-4 text-xs text-muted">
+        {s.payments && s.payments !== "simulated" && (
+          <>Bachs keeps a processing fee from each payment (about 1.5%). Your payout is the agreed price minus that fee. </>
+        )}
         Payout timing depends on the payment provider&rsquo;s settlement schedule. We&rsquo;ll publish expected timings before live payments launch.
       </p>
 

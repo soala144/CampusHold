@@ -1,10 +1,14 @@
 "use client";
 
-import { ImageIcon, X } from "lucide-react";
-import { useState } from "react";
+import { ImageIcon, Upload, X } from "lucide-react";
+import { useId, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/form";
+import { Spinner } from "@/components/ui/feedback";
 import type { ServiceCover } from "@/lib/domain/types";
+import { uploadFile } from "@/lib/upload";
+
+const MAX_COVER_BYTES = 10 * 1024 * 1024;
 
 /**
  * Cover photo by link. The browser loads the image once to check it works
@@ -19,6 +23,26 @@ export function CoverUrlField({
 }) {
   const [url, setUrl] = useState(value?.url ?? "");
   const [status, setStatus] = useState<"idle" | "checking" | "error">("idle");
+  const [upload, setUpload] = useState<{ pct: number } | { error: string } | null>(null);
+  const fileId = useId();
+
+  async function uploadCover(file: File | undefined) {
+    if (!file) return;
+    if (!/^image\/(jpeg|png|webp|avif)$/.test(file.type)) return setUpload({ error: "Choose a JPG, PNG or WebP photo." });
+    if (file.size > MAX_COVER_BYTES) return setUpload({ error: "That photo is larger than 10 MB." });
+    setUpload({ pct: 0 });
+    try {
+      const up = await uploadFile(file, "covers", (pct) => setUpload({ pct }));
+      if (!up) return setUpload({ error: "Photo uploads aren’t set up yet. Paste a link instead." });
+      const aspect = up.width && up.height ? Math.min(2, Math.max(0.5, +(up.width / up.height).toFixed(3))) : 0.75;
+      setUrl(up.url);
+      setStatus("idle");
+      setUpload(null);
+      onChange({ url: up.url, alt: value?.alt ?? "Service cover image", aspect });
+    } catch (e) {
+      setUpload({ error: e instanceof Error ? `Upload failed: ${e.message}` : "Upload failed." });
+    }
+  }
 
   function check() {
     const trimmed = url.trim();
@@ -48,7 +72,7 @@ export function CoverUrlField({
           id="cover-url"
           type="url"
           inputMode="url"
-          placeholder="https://… link to a photo of your work"
+          placeholder="Paste an https:// image link"
           value={url}
           onChange={(e) => {
             setUrl(e.target.value);
@@ -63,6 +87,25 @@ export function CoverUrlField({
           }}
           aria-invalid={status === "error"}
         />
+        <label
+          htmlFor={fileId}
+          className="inline-flex h-11 shrink-0 cursor-pointer items-center gap-2 rounded-full border border-line-strong px-4 text-sm font-medium hover:border-ink has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ink"
+        >
+          {upload && "pct" in upload ? <Spinner /> : <Upload className="size-4" aria-hidden />}
+          <span className="hidden sm:inline">{upload && "pct" in upload ? `${upload.pct}%` : "Upload"}</span>
+          <span className="sr-only sm:hidden">Upload a photo</span>
+          <input
+            id={fileId}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/avif"
+            className="sr-only"
+            disabled={upload !== null && "pct" in upload}
+            onChange={(e) => {
+              void uploadCover(e.target.files?.[0]);
+              e.target.value = "";
+            }}
+          />
+        </label>
         {value && (
           <Button
             variant="ghost"
@@ -77,6 +120,7 @@ export function CoverUrlField({
           </Button>
         )}
       </div>
+      {upload && "error" in upload && <p className="text-sm text-danger">{upload.error}</p>}
       {status === "error" ? (
         <p className="text-sm text-danger">That link didn&rsquo;t load as an image. Use a direct https link to a JPG, PNG or WebP.</p>
       ) : status === "checking" ? (
@@ -96,7 +140,7 @@ export function CoverUrlField({
       ) : (
         <p className="flex items-center gap-1.5 text-sm text-muted">
           <ImageIcon className="size-3.5" aria-hidden />
-          Paste a link to a photo of your work. Without one, a plain category cover is shown.
+          Upload a photo of your work or paste a link. Without one, a plain category cover is shown.
         </p>
       )}
     </div>

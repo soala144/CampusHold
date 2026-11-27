@@ -4,15 +4,15 @@ import { Paperclip, SendHorizontal } from "lucide-react";
 import { useId, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { Attachment } from "@/lib/domain/types";
-import { toAttachments } from "@/lib/files";
 import { ops, run } from "@/lib/store";
-import { AttachmentChip } from "./attachments";
+import { AttachmentChip, useAttachmentUpload } from "./attachments";
 
 export function Composer({ jobId, authorId, onSent }: { jobId: string; authorId: string; onSent?: () => void }) {
   const id = useId();
   const [body, setBody] = useState("");
   const [files, setFiles] = useState<Attachment[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const upload = useAttachmentUpload();
 
   function send() {
     const r = run(ops.sendMessage(jobId, authorId, body, files));
@@ -38,7 +38,8 @@ export function Composer({ jobId, authorId, onSent }: { jobId: string; authorId:
           ))}
         </div>
       )}
-      {error && <p className="text-sm text-danger" role="alert">{error}</p>}
+      {upload.uploading && <p className="text-sm text-muted" role="status">{upload.uploading}</p>}
+      {(error ?? upload.error) && <p className="text-sm text-danger" role="alert">{error ?? upload.error}</p>}
       <div className="flex items-end gap-2">
         <label
           htmlFor={id}
@@ -52,11 +53,11 @@ export function Composer({ jobId, authorId, onSent }: { jobId: string; authorId:
             type="file"
             multiple
             className="sr-only"
+            disabled={upload.uploading !== null}
             onChange={(e) => {
-              const r = toAttachments(e.target.files, files.length);
-              setError(r.error);
-              if (!r.error) setFiles([...files, ...r.attachments]);
+              const picked = upload.add(e.target.files, files.length);
               e.target.value = "";
+              void picked.then((added) => added.length > 0 && setFiles((prev) => [...prev, ...added]));
             }}
           />
         </label>
@@ -74,7 +75,7 @@ export function Composer({ jobId, authorId, onSent }: { jobId: string; authorId:
           placeholder="Write a message…"
           className="max-h-40 min-h-10 flex-1 resize-none rounded-2xl border border-line-strong bg-canvas px-4 py-2.5 text-[0.9375rem] outline-none placeholder:text-subtle focus:border-ink [field-sizing:content]"
         />
-        <Button type="submit" aria-label="Send message" size="icon" disabled={!body.trim() && files.length === 0}>
+        <Button type="submit" aria-label="Send message" size="icon" disabled={upload.uploading !== null || (!body.trim() && files.length === 0)}>
           <SendHorizontal />
         </Button>
       </div>

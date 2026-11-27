@@ -11,6 +11,7 @@ import { can } from "@/lib/domain/job-machine";
 import { formatMoney } from "@/lib/format";
 import { delay } from "@/lib/simulate";
 import { currentUser, getUser, ops, run, useAppState } from "@/lib/store";
+import { BachsCheckout } from "./bachs-checkout";
 
 type Phase = "review" | "verifying" | "success" | "failed" | "pending";
 
@@ -44,6 +45,7 @@ export function Checkout() {
 
   const freelancer = getUser(s, job.freelancerId)!;
   const workspace = `/jobs/${job.id}`;
+  if (s.payments && s.payments !== "simulated") return <BachsCheckout job={job} freelancer={freelancer} />;
 
   async function pay(outcome: "success" | "failed" | "pending") {
     setError(null);

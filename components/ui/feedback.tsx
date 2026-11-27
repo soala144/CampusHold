@@ -1,4 +1,4 @@
-import { AlertTriangle, CheckCircle2, FlaskConical, Info, Loader2, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Info, Loader2, XCircle } from "lucide-react";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
 import type { Tone } from "@/lib/tone";
@@ -36,37 +36,7 @@ export function Alert({
   );
 }
 
-/** Marks anything financial as simulated during Stages 2–3. */
-export function SimulatedBadge({ className }: { className?: string }) {
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1 rounded-full border border-dashed border-warning/50 bg-warning-soft px-2 py-0.5 text-[0.6875rem] font-medium tracking-wide text-warning uppercase",
-        className,
-      )}
-    >
-      <FlaskConical className="size-3" aria-hidden />
-      Simulated
-    </span>
-  );
-}
-
-export function SimulatedNotice({ children, className }: { children?: ReactNode; className?: string }) {
-  return (
-    <div
-      className={cn(
-        "flex items-start gap-3 rounded-xl border border-dashed border-warning/40 bg-warning-soft/60 px-4 py-3 text-sm text-ink-soft",
-        className,
-      )}
-    >
-      <FlaskConical className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />
-      <p>
-        <span className="font-medium text-ink">Simulation.</span>{" "}
-        {children ?? "No real money moves. Payments, balances and payouts here are mock data for testing the workflow."}
-      </p>
-    </div>
-  );
-}
+export { SimulatedBadge, SimulatedNotice } from "./payment-mode";
 
 export function EmptyState({
   icon,

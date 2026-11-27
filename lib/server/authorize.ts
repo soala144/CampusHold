@@ -3,9 +3,14 @@ import type { Actor } from "@/lib/domain/job-machine";
 import type { CategoryId, Job, PayoutAccount, User } from "@/lib/domain/types";
 import { categories } from "@/lib/domain/categories";
 import type { AppState } from "@/lib/store/state";
+import { cleanAttachments } from "./cloudinary";
 
-/** Payments are simulated until Stage 4; simulation controls are only allowed when this is on. */
-export const simulationEnabled = () => process.env.SIMULATION_ENABLED !== "false";
+/**
+ * Simulation controls (stand-ins for the payment provider) are allowed only
+ * while payments are simulated. With Bachs on, they're always off.
+ */
+export const simulationEnabled = () => process.env.PAYMENTS_PROVIDER !== "bachs" && process.env.SIMULATION_ENABLED !== "false";
+const realPayments = () => process.env.PAYMENTS_PROVIDER === "bachs";
 
 type Verdict = { ok: true; args: unknown[] } | { ok: false; error: string };
 const deny = (error = "You don't have permission to do that."): Verdict => ({ ok: false, error });
@@ -34,13 +39,28 @@ export function authorize(name: string, rawArgs: unknown[], user: User, world: A
       if (!job || typeof action !== "string" || !input || typeof input !== "object") return deny("Job not found.");
       const role = partyRole(job);
       const as = input.as;
+      // With real payments, funding goes through Bachs checkout, never a direct state change.
+      if (realPayments() && action === "initiate_payment") return deny("Use the payment page to fund this job.");
       if (as === "admin") return user.isAdmin ? allow(jobId, action, { ...input, byUserId: undefined }) : deny();
       if (as === "system") {
         return simulationEnabled() && (role || user.isAdmin) ? allow(jobId, action, { ...input, byUserId: undefined }) : deny();
       }
       if (!role) return deny();
-      // You can only ever act as yourself on a job.
-      return as === role ? allow(jobId, action, { ...input, byUserId: user.id }) : deny();
+      if (as !== role) return deny(); // You can only ever act as yourself on a job.
+      const clean = { ...input, byUserId: user.id } as Record<string, unknown>;
+      const sub = input.submission as { note?: unknown; files?: unknown } | undefined;
+      if (sub) {
+        const files = cleanAttachments(sub.files ?? [], user.id);
+        if (!files || typeof sub.note !== "string") return deny("Invalid delivery.");
+        clean.submission = { note: sub.note.slice(0, 4000), files };
+      }
+      const dis = input.dispute as { evidence?: unknown } | undefined;
+      if (dis) {
+        const evidence = cleanAttachments(dis.evidence ?? [], user.id);
+        if (!evidence) return deny("Invalid evidence.");
+        clean.dispute = { ...dis, evidence };
+      }
+      return allow(jobId, action, clean);
     }
     case "settleFunds":
     case "failTransfer":
@@ -53,8 +73,9 @@ export function authorize(name: string, rawArgs: unknown[], user: User, world: A
       const job = findJob(jobId);
       if (!job || !partyRole(job)) return deny();
       const text = str(body, 5000);
-      if (text === null || !Array.isArray(attachments) || attachments.length > 10) return deny("Invalid message.");
-      return allow(jobId, user.id, text, attachments);
+      const files = cleanAttachments(attachments, user.id);
+      if (text === null || !files) return deny("Invalid message.");
+      return allow(jobId, user.id, text, files);
     }
     case "markJobRead":
       return findJob(args[0]) ? allow(args[0], user.id) : deny();
@@ -68,13 +89,16 @@ export function authorize(name: string, rawArgs: unknown[], user: User, world: A
       const revisions = input.revisionsAllowed;
       if (typeof revisions !== "number" || revisions < 0 || revisions > 5) return deny("Invalid revisions.");
       if (!world.users.some((u) => u.id === input.freelancerId && u.roles.freelancer && u.status === "active")) return deny("Freelancer not found.");
-      return allow(user.id, input, Boolean(send));
+      const files = cleanAttachments(input.attachments ?? [], user.id);
+      if (!files) return deny("Invalid attachments.");
+      return allow(user.id, { ...input, attachments: files }, Boolean(send));
     }
     case "requestService": {
       const [, serviceId, packageId, requirements, attachments] = args;
       const text = str(requirements, 3000);
-      if (!text || text.trim().length < 30 || !Array.isArray(attachments)) return deny("Describe what you need.");
-      return allow(user.id, serviceId, packageId, text, attachments);
+      const files = cleanAttachments(attachments, user.id);
+      if (!text || text.trim().length < 30 || !files) return deny("Describe what you need.");
+      return allow(user.id, serviceId, packageId, text, files);
     }
     case "saveService": {
       const [, input, status, serviceId] = args as [unknown, Record<string, unknown>, unknown, unknown];
@@ -86,6 +110,9 @@ export function authorize(name: string, rawArgs: unknown[], user: User, world: A
       for (const p of input.packages as Record<string, unknown>[]) {
         if (typeof p.price !== "number" || p.price < 100_000 || p.price > 500_000_000 || !Array.isArray(p.features)) return deny("Invalid package.");
       }
+      const images = cleanAttachments(input.images ?? [], user.id, 8);
+      if (!images) return deny("Invalid images.");
+      input.images = images;
       if (input.cover !== undefined) {
         const c = input.cover as Record<string, unknown>;
         const url = str(c?.url, 500);
@@ -136,7 +163,9 @@ export function authorize(name: string, rawArgs: unknown[], user: User, world: A
       const job = findJob(d.jobId);
       const asAdmin = authorId === "admin";
       if (asAdmin ? !user.isAdmin : !job || !partyRole(job)) return deny();
-      return allow(disputeId, asAdmin ? "admin" : user.id, str(body, 3000) ?? "", Array.isArray(evidence) ? evidence : []);
+      const files = cleanAttachments(evidence ?? [], user.id);
+      if (!files) return deny("Invalid evidence.");
+      return allow(disputeId, asAdmin ? "admin" : user.id, str(body, 3000) ?? "", files);
     }
     case "setDisputeStatus":
     case "setUserStatus":

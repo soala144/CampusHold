@@ -5,6 +5,7 @@ import { useId, useState } from "react";
 import type { Attachment } from "@/lib/domain/types";
 import { formatBytes } from "@/lib/format";
 import { toAttachments } from "@/lib/files";
+import { uploadAttachments } from "@/lib/upload";
 import { cn } from "@/lib/cn";
 
 export function AttachmentChip({
@@ -24,7 +25,13 @@ export function AttachmentChip({
       )}
     >
       <FileText className="size-3.5 shrink-0 text-muted" aria-hidden />
-      <span className="truncate font-medium text-ink">{file.name}</span>
+      {file.url ? (
+        <a href={file.url} target="_blank" rel="noopener noreferrer" className="truncate font-medium text-ink underline-offset-2 hover:underline">
+          {file.name}
+        </a>
+      ) : (
+        <span className="truncate font-medium text-ink">{file.name}</span>
+      )}
       <span className="shrink-0 text-subtle">{formatBytes(file.sizeBytes)}</span>
       {onRemove && (
         <button type="button" onClick={onRemove} aria-label={`Remove ${file.name}`} className="rounded p-0.5 text-muted hover:bg-surface hover:text-ink">
@@ -33,6 +40,28 @@ export function AttachmentChip({
       )}
     </span>
   );
+}
+
+/** Check picked files, upload them to storage and return attachment records. */
+export function useAttachmentUpload() {
+  const [uploading, setUploading] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  async function add(list: FileList | null, existing: number): Promise<Attachment[]> {
+    const files = Array.from(list ?? []);
+    const checked = toAttachments(files, existing);
+    setError(checked.error);
+    if (checked.error || files.length === 0) return [];
+    setUploading(`Uploading 0 of ${files.length}…`);
+    try {
+      return await uploadAttachments(files, (done, total) => setUploading(`Uploading ${done} of ${total}…`));
+    } catch (e) {
+      setError(e instanceof Error ? `Upload failed: ${e.message}` : "Upload failed. Please try again.");
+      return [];
+    } finally {
+      setUploading(null);
+    }
+  }
+  return { add, uploading, error, setError };
 }
 
 /** File picker that produces attachment metadata and shows the picked list. */
@@ -46,7 +75,7 @@ export function AttachmentPicker({
   label?: string;
 }) {
   const id = useId();
-  const [error, setError] = useState<string | null>(null);
+  const { add, uploading, error } = useAttachmentUpload();
   return (
     <div className="flex flex-col gap-2">
       <label
@@ -60,14 +89,15 @@ export function AttachmentPicker({
           type="file"
           multiple
           className="sr-only"
+          disabled={uploading !== null}
           onChange={(e) => {
-            const { attachments, error } = toAttachments(e.target.files, value.length);
-            setError(error);
-            if (!error) onChange([...value, ...attachments]);
+            const picked = add(e.target.files, value.length);
             e.target.value = "";
+            void picked.then((added) => added.length > 0 && onChange([...value, ...added]));
           }}
         />
       </label>
+      {uploading && <p className="text-sm text-muted" role="status">{uploading}</p>}
       {error && <p className="text-sm text-danger">{error}</p>}
       {value.length > 0 && (
         <div className="flex flex-wrap gap-2">
@@ -76,7 +106,7 @@ export function AttachmentPicker({
           ))}
         </div>
       )}
-      <p className="text-xs text-subtle">Up to 10 files, 25 MB each. File contents aren&rsquo;t stored in this demo.</p>
+      <p className="text-xs text-subtle">Up to 10 files, 25 MB each.</p>
     </div>
   );
 }

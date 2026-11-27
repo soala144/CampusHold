@@ -8,6 +8,20 @@
       "when": 1795739961899,
       "tag": "0000_init",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1795774208230,
+      "tag": "0001_bachs_payments",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1795775132965,
+      "tag": "0002_payment_fee",
+      "breakpoints": true
     }
   ]
 }

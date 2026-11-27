@@ -14,24 +14,28 @@ type Conn = DB | Tx;
  * AppState shape. Admins see every job; everyone else only their own.
  * `viewer` null = signed-out visitor (public marketplace only).
  */
-export async function loadWorld(db: Conn, viewer: User | null): Promise<AppState> {
+export async function loadWorld(db: Conn, viewer: User | null, opts: { jobId?: string } = {}): Promise<AppState> {
   const admin = Boolean(viewer?.isAdmin);
   const none = sql`false`;
   // Jobs this viewer may see, as a subquery so every query can run at once.
-  const jobScope = !viewer
-    ? none
-    : admin
-      ? sql`true`
-      : or(eq(schema.jobs.clientId, viewer.id), eq(schema.jobs.freelancerId, viewer.id))!;
+  // `jobId` with no viewer = the system acting on one job (webhooks, payments).
+  const jobScope = opts.jobId
+    ? eq(schema.jobs.id, opts.jobId)
+    : !viewer
+      ? none
+      : admin
+        ? sql`true`
+        : or(eq(schema.jobs.clientId, viewer.id), eq(schema.jobs.freelancerId, viewer.id))!;
+  const scoped = Boolean(viewer || opts.jobId);
   const visibleJobIds = db.select({ id: schema.jobs.id }).from(schema.jobs).where(jobScope);
 
   const [userRows, serviceRows, jobRows, threadRows, txRows, disputeRows, payoutRows, notificationRows, auditRows] = await Promise.all([
     db.select().from(schema.users),
     db.select().from(schema.services),
-    viewer ? db.select().from(schema.jobs).where(jobScope) : [],
-    viewer ? db.select().from(schema.jobThread).where(inArray(schema.jobThread.jobId, visibleJobIds)).orderBy(schema.jobThread.createdAt) : [],
-    viewer ? db.select().from(schema.transactions).where(inArray(schema.transactions.jobId, visibleJobIds)) : [],
-    viewer ? db.select().from(schema.disputes).where(inArray(schema.disputes.jobId, visibleJobIds)) : [],
+    scoped ? db.select().from(schema.jobs).where(jobScope) : [],
+    scoped ? db.select().from(schema.jobThread).where(inArray(schema.jobThread.jobId, visibleJobIds)).orderBy(schema.jobThread.createdAt) : [],
+    scoped ? db.select().from(schema.transactions).where(inArray(schema.transactions.jobId, visibleJobIds)) : [],
+    scoped ? db.select().from(schema.disputes).where(inArray(schema.disputes.jobId, visibleJobIds)) : [],
     viewer ? db.select().from(schema.payoutAccounts).where(eq(schema.payoutAccounts.userId, viewer.id)) : [],
     viewer
       ? db.select().from(schema.notifications).where(eq(schema.notifications.userId, viewer.id)).orderBy(desc(schema.notifications.createdAt)).limit(100)
@@ -73,7 +77,7 @@ export function toSnapshot(world: AppState): AppState {
   return {
     ...world,
     users: world.users.map((u) =>
-      u.id === me || admin ? u : { ...u, email: "", phone: "", verified: { ...u.verified } },
+      u.id === me ? u : admin ? { ...u, payouts: undefined } : { ...u, email: "", phone: "", verified: { ...u.verified }, payouts: undefined },
     ),
     services: world.services.filter((s) => s.status === "active" || s.freelancerId === me),
   };

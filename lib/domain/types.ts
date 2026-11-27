@@ -59,6 +59,8 @@ export interface User {
   status: "active" | "suspended";
   /** Finished onboarding (profile and roles chosen). */
   onboarded?: boolean;
+  /** Payout account with the payment provider (Bachs Connect). Only sent to its owner. */
+  payouts?: { accountId: string; status: "onboarding" | "active" | "restricted" };
   joinedAt: ISODate;
   freelancer?: FreelancerProfile;
   client?: ClientProfile;
@@ -155,6 +157,8 @@ export interface Attachment {
   id: ID;
   name: string;
   sizeBytes: number;
+  /** Where the file lives (Cloudinary). Absent for files from before uploads existed. */
+  url?: string;
 }
 
 export interface Submission {
@@ -251,7 +255,16 @@ export interface Transaction {
   userId: ID;
   counterpartyId: ID;
   reference: string;
-  simulated: true;
+  /** True for simulated money (no payment provider involved). */
+  simulated: boolean;
+  provider?: "simulated" | "bachs";
+  /** Provider id: checkout (chk_) for payments, transfer (tr_) for payouts, refund (rfnd_) for refunds. */
+  providerRef?: string;
+  /** The provider's charge id (ch_) once a payment is made. */
+  providerChargeId?: string;
+  checkoutUrl?: string;
+  /** Fee the payment provider kept (kobo). The freelancer receives the amount minus this fee. */
+  providerFee?: number;
   createdAt: ISODate;
   updatedAt: ISODate;
 }

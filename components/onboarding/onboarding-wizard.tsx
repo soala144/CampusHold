@@ -62,25 +62,28 @@ const stepTitles: Record<StepId, string> = {
   review: "Review",
 };
 
-function stepsFor(intent?: RoleData["intent"]): StepId[] {
+function stepsFor(intent?: RoleData["intent"], realPayouts = false): StepId[] {
   const s: StepId[] = ["role", "profile"];
   if (intent === "offer" || intent === "both") s.push("freelancer");
   if (intent === "hire" || intent === "both") s.push("client");
-  if (intent === "offer" || intent === "both") s.push("payout");
+  // With Bachs, payout details are collected on Bachs's own page from the Payouts screen.
+  if (!realPayouts && (intent === "offer" || intent === "both")) s.push("payout");
   s.push("review");
   return s;
 }
 
 export function OnboardingWizard() {
   const router = useRouter();
-  const me = currentUser(useAppState());
+  const appState = useAppState();
+  const me = currentUser(appState);
+  const realPayouts = Boolean(appState.payments && appState.payments !== "simulated");
   const [draft, setDraft] = useState<Draft>(loadDraft);
   const [saved, setSaved] = useState(false);
-  const steps = stepsFor(draft.role?.intent);
+  const steps = stepsFor(draft.role?.intent, realPayouts);
   const index = Math.max(0, steps.indexOf(draft.step));
 
   function save(patch: Partial<Draft>, next: boolean) {
-    const nextStep = next ? stepsFor(patch.role?.intent ?? draft.role?.intent)[index + 1] : draft.step;
+    const nextStep = next ? stepsFor(patch.role?.intent ?? draft.role?.intent, realPayouts)[index + 1] : draft.step;
     const updated = { ...draft, ...patch, step: nextStep ?? draft.step };
     setDraft(updated);
     localStorage.setItem(DRAFT_KEY, JSON.stringify(updated));
