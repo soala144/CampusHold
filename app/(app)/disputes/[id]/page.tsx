@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { DisputeDetail } from "@/components/disputes/disputes";
 import { seedDisputes } from "@/lib/mock/seed";
 
-// Stage 2: browser-only page (see app/(app)/layout.tsx).
+// Reads the session per request (see app/(app)/layout.tsx).
 export const instant = false;
 
 export const metadata: Metadata = { title: "Dispute" };

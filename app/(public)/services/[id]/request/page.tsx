@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { ServiceRequest } from "@/components/services/service-request";
 import { seedServices } from "@/lib/mock/seed-services";
 
-// Stage 2: browser-only page (see app/(public)/layout.tsx).
+// Reads the session per request (see app/(public)/layout.tsx).
 export const instant = false;
 
 export const metadata: Metadata = { title: "Request a service" };

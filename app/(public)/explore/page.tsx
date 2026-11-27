@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Explore } from "@/components/explore/explore";
 
-// Stage 2: browser-only page (see app/(public)/layout.tsx).
+// Reads the session per request (see app/(public)/layout.tsx).
 export const instant = false;
 
 export const metadata: Metadata = {

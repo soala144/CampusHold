@@ -5,11 +5,11 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { MailCheck } from "lucide-react";
-import { Button, ButtonLink } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/form";
 import { Spinner } from "@/components/ui/feedback";
 import { forgotSchema } from "@/lib/validation/auth";
-import { delay } from "@/lib/simulate";
+import { requestPasswordReset } from "@/lib/server/auth-actions";
 import { AuthHeading, DemoHint } from "./auth-shell";
 
 export function ForgotForm() {
@@ -35,9 +35,6 @@ export function ForgotForm() {
             </>
           }
         />
-        <ButtonLink href="/reset-password" size="lg" className="w-full">
-          Open reset link (demo)
-        </ButtonLink>
         <button onClick={() => setSentTo(null)} className="self-center text-sm text-muted hover:text-ink">
           Use a different email
         </button>
@@ -54,7 +51,7 @@ export function ForgotForm() {
       <form
         noValidate
         onSubmit={handleSubmit(async ({ email }) => {
-          await delay();
+          await requestPasswordReset({ email });
           setSentTo(email);
         })}
         className="flex flex-col gap-4"
@@ -73,7 +70,7 @@ export function ForgotForm() {
           Back to log in
         </Link>
       </p>
-      <DemoHint>No email is sent in the mock.</DemoHint>
+      <DemoHint>Email isn&rsquo;t connected yet, so the reset link is printed in the server console.</DemoHint>
     </>
   );
 }

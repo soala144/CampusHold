@@ -9,15 +9,14 @@ import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/form";
 import { Alert, Spinner } from "@/components/ui/feedback";
 import { loginSchema, type LoginInput } from "@/lib/validation/auth";
-import { delay } from "@/lib/simulate";
 import { takeReturnTo } from "@/lib/return-to";
-import { ops, run } from "@/lib/store";
-import { AuthHeading, DemoHint } from "./auth-shell";
+import { logIn } from "@/lib/server/auth-actions";
+import { AuthHeading } from "./auth-shell";
 import { PasswordInput } from "./password-input";
 
 export function LoginForm() {
   const router = useRouter();
-  const [failed, setFailed] = useState(false);
+  const [failed, setFailed] = useState<string | null>(null);
   const {
     register,
     handleSubmit,
@@ -25,22 +24,18 @@ export function LoginForm() {
   } = useForm<LoginInput>({ resolver: zodResolver(loginSchema), mode: "onTouched" });
 
   async function onSubmit(values: LoginInput) {
-    setFailed(false);
-    await delay();
-    // Demo: lets testers see the failed-login state.
-    if (values.password === "wrongpassword") {
-      setFailed(true);
-      return;
-    }
-    run(ops.setSignedIn(true));
-    router.push(takeReturnTo());
+    setFailed(null);
+    const res = await logIn(values);
+    if (!res.ok) return setFailed(res.error);
+    router.push(res.next === "/dashboard" ? takeReturnTo() : res.next);
+    router.refresh();
   }
 
   return (
     <>
       <AuthHeading title="Welcome back" description="Log in to your CampusHold account." />
       {failed && (
-        <Alert tone="danger" title="That email and password don't match" className="mb-5">
+        <Alert tone="danger" title={failed} className="mb-5">
           Check your details and try again, or reset your password.
         </Alert>
       )}
@@ -65,10 +60,6 @@ export function LoginForm() {
           Create an account
         </Link>
       </p>
-      <DemoHint>
-        Any valid email and password signs you in as the demo user. Use the password{" "}
-        <code className="font-mono">wrongpassword</code> to see the error state.
-      </DemoHint>
     </>
   );
 }

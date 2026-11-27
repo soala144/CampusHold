@@ -11,14 +11,14 @@ import { Alert, EmptyState, Spinner } from "@/components/ui/feedback";
 import { Field, Input, PrefixInput, Select, TagInput, Textarea } from "@/components/ui/form";
 import { useToast } from "@/components/ui/toast";
 import { Page, PageHeader, Panel } from "@/components/app/page-header";
-import { AttachmentPicker } from "@/components/jobs/attachments";
 import { categories } from "@/lib/domain/categories";
-import type { Attachment, CategoryId, Service, ServiceStatus } from "@/lib/domain/types";
+import type { Attachment, CategoryId, Service, ServiceCover, ServiceStatus } from "@/lib/domain/types";
 import { formatMoney, nairaToKobo } from "@/lib/format";
 import { delay } from "@/lib/simulate";
 import { currentUser, ops, run, useAppState } from "@/lib/store";
 import { serviceSchema, type ServiceFormData, type ServiceFormInput } from "@/lib/validation/service";
-import { ServiceCover } from "./service-card";
+import { ServiceCover as CoverImage } from "./service-card";
+import { CoverUrlField } from "./cover-url-field";
 
 const emptyPackage = (name: string) => ({ name, description: "", price: "" as unknown as number, deliveryDays: 3, revisions: 1, features: [{ text: "" }] });
 
@@ -44,7 +44,8 @@ export function ServiceEditor() {
   const s = useAppState();
   const me = currentUser(s);
   const existing = params.id ? s.services.find((x) => x.id === params.id && x.freelancerId === me.id) : undefined;
-  const [images, setImages] = useState<Attachment[]>(existing?.images ?? []);
+  const images: Attachment[] = existing?.images ?? [];
+  const [cover, setCover] = useState<ServiceCover | undefined>(existing?.cover);
   const [error, setError] = useState<string | null>(null);
 
   const {
@@ -100,6 +101,7 @@ export function ServiceEditor() {
           })),
           faq: d.faq,
           images,
+          cover,
         },
         status,
         existing?.id,
@@ -113,7 +115,7 @@ export function ServiceEditor() {
   const prices = (livePackages ?? []).map((p) => Number(p?.price)).filter((n) => n > 0);
   const preview = {
     category: (category || existing?.category || "design") as CategoryId,
-    cover: existing?.cover,
+    cover,
   };
 
   return (
@@ -150,8 +152,7 @@ export function ServiceEditor() {
                 {(p) => <Textarea {...p} rows={7} {...register("description")} />}
               </Field>
               <div>
-                <p className="mb-1.5 text-sm font-medium">Images <span className="font-normal text-subtle">· optional</span></p>
-                <AttachmentPicker value={images} onChange={setImages} label="Add images of your work" />
+                <CoverUrlField value={cover} onChange={setCover} />
               </div>
             </div>
           </Panel>
@@ -209,7 +210,7 @@ export function ServiceEditor() {
 
         <aside className="flex flex-col gap-4 self-start lg:sticky lg:top-6">
           <div className="overflow-hidden rounded-card border border-line bg-canvas">
-            <ServiceCover service={preview} sizes="320px" className="aspect-[16/10] border-b border-line" />
+            <CoverImage service={preview} sizes="320px" className="aspect-[16/10] border-b border-line" />
             <div className="flex flex-col gap-2 p-4">
               <div className="flex items-center gap-2">
                 <Avatar user={me} size="xs" />
@@ -223,7 +224,7 @@ export function ServiceEditor() {
               </p>
             </div>
           </div>
-          <p className="px-1 text-xs text-muted">Card preview. New photo uploads appear once file storage is added (Stage 3).</p>
+          <p className="px-1 text-xs text-muted">Card preview.</p>
           {error && <Alert tone="danger">{error}</Alert>}
           <Button type="submit" size="lg" disabled={isSubmitting}>
             {isSubmitting && <Spinner />}

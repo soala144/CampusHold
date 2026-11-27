@@ -4,10 +4,9 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { BadgeCheck, Laptop, RotateCcw, Smartphone } from "lucide-react";
+import { Laptop, Smartphone } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Dialog } from "@/components/ui/dialog";
 import { Alert, Spinner } from "@/components/ui/feedback";
 import { Field, Input, PrefixInput, Select, Textarea } from "@/components/ui/form";
 import { StatusPill } from "@/components/ui/primitives";
@@ -21,7 +20,7 @@ import type { User } from "@/lib/domain/types";
 import { cn } from "@/lib/cn";
 import { nairaToKobo } from "@/lib/format";
 import { delay } from "@/lib/simulate";
-import { currentUser, ops, resetState, run, useAppState } from "@/lib/store";
+import { currentUser, ops, run, useAppState } from "@/lib/store";
 import { passwordSchema } from "@/lib/validation/auth";
 
 type Tab = "profile" | "roles" | "notifications" | "security";
@@ -293,7 +292,6 @@ function SecuritySettings() {
   const s = useAppState();
   const me = currentUser(s);
   const toast = useToast();
-  const [confirmReset, setConfirmReset] = useState(false);
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<z.infer<typeof changePassword>>({
     resolver: zodResolver(changePassword),
   });
@@ -356,42 +354,6 @@ function SecuritySettings() {
         </Button>
       </Panel>
 
-      <Panel title="Demo data">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-muted">Restore all jobs, payments and messages to the original mock data.</p>
-          <Button variant="secondary" onClick={() => setConfirmReset(true)}>
-            <RotateCcw />
-            Reset demo data
-          </Button>
-        </div>
-      </Panel>
-
-      <Dialog
-        open={confirmReset}
-        onClose={() => setConfirmReset(false)}
-        title="Reset demo data?"
-        description="Everything you've done in this demo will be replaced with the original mock data."
-        footer={
-          <>
-            <Button variant="ghost" onClick={() => setConfirmReset(false)}>Cancel</Button>
-            <Button
-              onClick={() => {
-                resetState();
-                localStorage.removeItem("campushold:onboarding-draft");
-                setConfirmReset(false);
-                toast.success("Demo data reset");
-              }}
-            >
-              Reset
-            </Button>
-          </>
-        }
-      >
-        <p className="flex items-center gap-2 text-sm text-muted">
-          <BadgeCheck className="size-4" aria-hidden />
-          Only affects this browser.
-        </p>
-      </Dialog>
     </div>
   );
 }

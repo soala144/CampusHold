@@ -8,6 +8,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { ButtonLink } from "@/components/ui/button";
 import { Logo, LogoMark } from "@/components/ui/logo";
 import { setReturnTo } from "@/lib/return-to";
+import { logOut } from "@/lib/server/auth-actions";
 import { cn } from "@/lib/cn";
 import { currentUser, ops, run, unreadNotifications, useAppState, type Mode } from "@/lib/store";
 import { adminNav, adminNavItem, isActive, primaryNav, secondaryNav, type NavItem } from "./nav";
@@ -28,8 +29,15 @@ export function AppShell({ children }: { children: ReactNode }) {
   const me = currentUser(state);
   const freelancerPage = pathname.startsWith("/my-services") || pathname === "/wallet/payouts";
   useEffect(() => {
-    if (freelancerPage && state.mode === "client" && me.roles.freelancer) run(ops.setMode("freelancer"));
-  }, [freelancerPage, state.mode, me.roles.freelancer]);
+    if (freelancerPage && state.mode === "client" && me?.roles.freelancer) run(ops.setMode("freelancer"));
+  }, [freelancerPage, state.mode, me?.roles.freelancer]);
+
+  // New accounts finish onboarding before using the app.
+  const router = useRouter();
+  const needsOnboarding = state.signedIn && !me?.onboarded && !pathname.startsWith("/onboarding");
+  useEffect(() => {
+    if (needsOnboarding) router.replace("/onboarding");
+  }, [needsOnboarding, router]);
 
   useEffect(() => {
     if (!open) return;
@@ -38,8 +46,9 @@ export function AppShell({ children }: { children: ReactNode }) {
     return () => document.removeEventListener("keydown", onKey);
   }, [open]);
 
-  if (pathname.startsWith("/onboarding")) return <>{children}</>;
   if (!state.signedIn) return <SignedOut />;
+  if (pathname.startsWith("/onboarding")) return <>{children}</>;
+  if (needsOnboarding) return null;
 
   return (
     <div className="flex min-h-dvh bg-surface/40">
@@ -155,8 +164,10 @@ function Sidebar() {
         </div>
         <button
           onClick={() => {
-            run(ops.setSignedIn(false));
-            router.push("/login");
+            void logOut().then(() => {
+              router.push("/login");
+              router.refresh();
+            });
           }}
           aria-label="Log out"
           className="rounded-full p-2 text-muted hover:bg-surface hover:text-ink"

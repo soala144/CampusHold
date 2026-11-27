@@ -18,7 +18,7 @@ import { cn } from "@/lib/cn";
 import { formatMoney, nairaToKobo } from "@/lib/format";
 import { delay } from "@/lib/simulate";
 import { takeReturnTo } from "@/lib/return-to";
-import { currentUser, getState, ops, run } from "@/lib/store";
+import { currentUser, ops, run, useAppState } from "@/lib/store";
 import {
   clientSchema,
   freelancerSchema,
@@ -73,7 +73,7 @@ function stepsFor(intent?: RoleData["intent"]): StepId[] {
 
 export function OnboardingWizard() {
   const router = useRouter();
-  const me = currentUser(getState());
+  const me = currentUser(useAppState());
   const [draft, setDraft] = useState<Draft>(loadDraft);
   const [saved, setSaved] = useState(false);
   const steps = stepsFor(draft.role?.intent);
@@ -119,6 +119,7 @@ export function OnboardingWizard() {
           }
         : undefined,
       client: draft.client,
+      onboarded: true,
     };
     run(ops.updateUser(me.id, patch));
     if (draft.payout && draft.payout !== "skipped") {
@@ -134,7 +135,6 @@ export function OnboardingWizard() {
       );
     }
     run(ops.setMode(intent === "offer" ? "freelancer" : "client"));
-    run(ops.setSignedIn(true));
     localStorage.removeItem(DRAFT_KEY);
     router.push(takeReturnTo());
   }

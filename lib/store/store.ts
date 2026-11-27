@@ -1,89 +1,103 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
-import { createSeedState, STATE_VERSION, type AppState } from "./state";
+import { createContext, useContext, useSyncExternalStore } from "react";
+import { performOp, refreshSnapshot } from "@/lib/server/actions";
+import { recordIds } from "./ids";
+import { emptyState, type AppState } from "./state";
+import type { OpCall } from "./ops";
 
 /**
- * Tiny client-side store for the Stage 2 mock.
- * Persisted to localStorage so simulated workflows survive a refresh.
- * Replaced by the database and server actions in Stage 3.
+ * Client cache of the signed-in user's data.
+ *
+ * The server renders the page with a snapshot (see StoreProvider). Actions run
+ * here first so the UI updates instantly, then the same operation runs on the
+ * server, which checks permissions and writes to the database. The server's
+ * snapshot always wins.
  */
 
-const KEY = "campushold:mock-state";
 const listeners = new Set<() => void>();
+const errorListeners = new Set<(message: string) => void>();
 let state: AppState | null = null;
+let pending = 0;
+let queue: Promise<unknown> = Promise.resolve();
 
-function load(): AppState {
-  if (typeof window === "undefined") return createSeedState();
-  try {
-    const raw = window.localStorage.getItem(KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw) as AppState;
-      if (parsed.version === STATE_VERSION) return parsed;
-    }
-  } catch {
-    // Corrupt or unavailable storage: fall back to seed data.
-  }
-  return createSeedState();
-}
+export const InitialStateContext = createContext<AppState>(emptyState());
 
 export function getState(): AppState {
-  if (!state) state = load();
-  return state;
+  return state ?? emptyState();
+}
+
+function notify() {
+  listeners.forEach((l) => l());
 }
 
 export function setState(next: AppState) {
   state = next;
-  try {
-    window.localStorage.setItem(KEY, JSON.stringify(next));
-  } catch {
-    // Storage full or disabled; keep the in-memory state.
-  }
-  listeners.forEach((l) => l());
+  notify();
 }
 
-export function resetState() {
-  setState(createSeedState());
+let lastHydrated: AppState | null = null;
+
+/**
+ * Called by StoreProvider while rendering a server snapshot. Only a *new*
+ * snapshot replaces local state, so optimistic changes aren't overwritten
+ * by unrelated re-renders.
+ */
+export function hydrate(snapshot: AppState) {
+  if (typeof window === "undefined" || snapshot === lastHydrated) return;
+  lastHydrated = snapshot;
+  state = snapshot;
 }
 
 function subscribe(listener: () => void) {
   listeners.add(listener);
-  const onStorage = (e: StorageEvent) => {
-    if (e.key === KEY) {
-      state = load();
-      listener();
-    }
-  };
-  window.addEventListener("storage", onStorage);
   return () => {
     listeners.delete(listener);
-    window.removeEventListener("storage", onStorage);
   };
 }
 
-/** Subscribe to the whole state. Selectors should be cheap; state is small. */
 export function useAppState(): AppState {
-  return useSyncExternalStore(subscribe, getState, getState);
+  const initial = useContext(InitialStateContext);
+  return useSyncExternalStore(subscribe, () => state ?? initial, () => initial);
+}
+
+export function onSyncError(listener: (message: string) => void) {
+  errorListeners.add(listener);
+  return () => {
+    errorListeners.delete(listener);
+  };
 }
 
 export type Result<T = void> = { ok: true; value: T } | { ok: false; error: string };
 
-/** Run a pure operation against the current state and commit it if it succeeds. */
-export function run<T>(op: (s: AppState) => { state: AppState; value: T } | { error: string }): Result<T> {
-  const out = op(getState());
+/**
+ * Run an operation: apply it locally for an instant result, then confirm it
+ * on the server. Server calls are queued so they apply in order.
+ */
+export function run<T>(op: OpCall<T>): Result<T> {
+  const { result: out, ids } = recordIds(() => op(getState()));
   if ("error" in out) return { ok: false, error: out.error };
   setState(out.state);
+
+  pending++;
+  queue = queue.then(async () => {
+    try {
+      const res = await performOp(op.opName, op.opArgs, ids);
+      if (!res.ok) errorListeners.forEach((l) => l(res.error));
+      // Only replace local state once every queued change has been confirmed.
+      if (pending === 1 && res.snapshot) setState(res.snapshot);
+    } catch {
+      errorListeners.forEach((l) => l("Couldn't reach the server. Your last change may not have been saved."));
+    } finally {
+      pending--;
+    }
+  });
   return { ok: true, value: out.value };
 }
 
-/**
- * Safe to use in server-rendered components: returns null during SSR and
- * hydration, then the real demo session flag once in the browser.
- */
-export function useSignedIn(): boolean | null {
-  return useSyncExternalStore(
-    subscribe,
-    () => getState().signedIn,
-    () => null,
-  );
+/** Pull fresh data (e.g. new messages) unless local changes are still syncing. */
+export async function refresh() {
+  if (pending > 0 || document.visibilityState !== "visible") return;
+  const snapshot = await refreshSnapshot();
+  if (snapshot && pending === 0) setState(snapshot);
 }

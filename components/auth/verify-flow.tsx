@@ -9,9 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/form";
 import { Alert, Spinner } from "@/components/ui/feedback";
 import { codeSchema } from "@/lib/validation/auth";
-import { delay } from "@/lib/simulate";
+import { resendCode, verifyCode, whoAmI } from "@/lib/server/auth-actions";
 import { cn } from "@/lib/cn";
-import { AuthHeading, DemoHint } from "./auth-shell";
+import { AuthHeading } from "./auth-shell";
 
 type Step = "email" | "phone";
 
@@ -20,6 +20,8 @@ export function VerifyFlow() {
   const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState<string | null>(null);
   const [resent, setResent] = useState(false);
+  // Codes shown on screen while email/SMS isn't connected.
+  const [codes, setCodes] = useState<{ email?: string; phone?: string }>({});
   const {
     register,
     handleSubmit,
@@ -29,15 +31,29 @@ export function VerifyFlow() {
   } = useForm<{ code: string }>({ resolver: zodResolver(codeSchema) });
 
   useEffect(() => {
-    // Read after mount so server and client markup match.
-    const id = setTimeout(() => setEmail(sessionStorage.getItem("campushold:pending-email")), 0);
-    return () => clearTimeout(id);
-  }, []);
+    void whoAmI().then(async (me) => {
+      if (!me) return router.replace("/login");
+      setEmail(me.email);
+      if (me.emailVerified && me.phoneVerified) return router.replace("/onboarding");
+      const current = me.emailVerified ? "phone" : "email";
+      setStep(current);
+      let saved: { email?: string; phone?: string } = {};
+      try {
+        saved = JSON.parse(sessionStorage.getItem("campushold:codes") ?? "{}");
+      } catch {}
+      // Came here without fresh codes (e.g. logged in later): issue a new one.
+      if (!saved[current]) {
+        const res = await resendCode(current);
+        if (res.ok && res.code) saved = { ...saved, [current]: res.code };
+      }
+      setCodes(saved);
+    });
+  }, [router]);
 
   async function onSubmit({ code }: { code: string }) {
-    await delay(600);
-    if (code === "000000") {
-      setError("code", { message: "That code is incorrect or has expired." });
+    const res = await verifyCode(step, { code });
+    if (!res.ok) {
+      setError("code", { message: res.error });
       return;
     }
     setResent(false);
@@ -45,6 +61,7 @@ export function VerifyFlow() {
       reset({ code: "" });
       setStep("phone");
     } else {
+      sessionStorage.removeItem("campushold:codes");
       router.push("/onboarding");
     }
   }
@@ -95,6 +112,20 @@ export function VerifyFlow() {
         </Alert>
       )}
 
+      {codes[step] && (
+        <div className="mb-5 flex items-center justify-between gap-4 rounded-xl border border-dashed border-warning/50 bg-warning-soft/60 px-4 py-3">
+          <div>
+            <p className="text-xs text-muted">Your {isEmail ? "email" : "phone"} code</p>
+            <p className="font-mono text-2xl font-medium tracking-[0.3em]" aria-live="polite">
+              {codes[step]}
+            </p>
+          </div>
+          <p className="max-w-[12rem] text-right text-xs text-muted">
+            Shown here because {isEmail ? "email" : "SMS"} isn&rsquo;t connected yet.
+          </p>
+        </div>
+      )}
+
       <form noValidate onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
         <Field label="Verification code" error={errors.code?.message}>
           {(p) => (
@@ -114,13 +145,23 @@ export function VerifyFlow() {
           {isSubmitting && <Spinner />}
           {isEmail ? "Verify email" : "Verify phone"}
         </Button>
-        <button type="button" onClick={() => setResent(true)} className="text-sm text-muted hover:text-ink">
+        <button
+          type="button"
+          onClick={async () => {
+            const res = await resendCode(step);
+            if (res.ok && res.code) setCodes((c) => ({ ...c, [step]: res.code }));
+            setResent(true);
+          }}
+          className="text-sm text-muted hover:text-ink"
+        >
           Didn&rsquo;t get it? Resend code
         </button>
+        {!isEmail && (
+          <button type="button" onClick={() => router.push("/onboarding")} className="text-sm text-muted hover:text-ink">
+            Skip for now and verify later
+          </button>
+        )}
       </form>
-      <DemoHint>
-        Any 6 digits work. Use <code className="font-mono">000000</code> to see the invalid-code state.
-      </DemoHint>
     </>
   );
 }

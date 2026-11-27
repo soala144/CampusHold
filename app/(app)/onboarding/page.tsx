@@ -1,11 +1,18 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { OnboardingWizard } from "@/components/onboarding/onboarding-wizard";
+import { BrowserOnly } from "@/components/ui/browser-only";
 
-// Stage 2: browser-only page (see app/(app)/layout.tsx).
 export const instant = false;
 
 export const metadata: Metadata = { title: "Set up your account" };
 
 export default function Page() {
-  return <OnboardingWizard />;
+  return (
+    <Suspense>
+      <BrowserOnly reason="The onboarding draft is saved in localStorage.">
+        <OnboardingWizard />
+      </BrowserOnly>
+    </Suspense>
+  );
 }

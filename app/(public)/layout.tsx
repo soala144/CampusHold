@@ -1,13 +1,10 @@
 import { Suspense } from "react";
 import { SiteFooter } from "@/components/marketing/site-footer";
 import { SiteHeader } from "@/components/marketing/site-header";
-import { ClientPublic } from "@/components/public/client-public";
+import { PublicData } from "@/components/app/data-boundary";
 import { PublicSkeleton } from "@/components/public/public-skeleton";
 
-/**
- * Public browsing (no account needed). Stage 2 reads mock data from
- * localStorage, so these pages render in the browser — see app/(app)/layout.tsx.
- */
+/** Public browsing (no account needed). Data is read per request on the server. */
 export const instant = false;
 
 export default function PublicLayout({ children }: LayoutProps<"/">) {
@@ -16,7 +13,7 @@ export default function PublicLayout({ children }: LayoutProps<"/">) {
       <SiteHeader />
       <main className="flex-1">
         <Suspense fallback={<PublicSkeleton />}>
-          <ClientPublic>{children}</ClientPublic>
+          <PublicData>{children}</PublicData>
         </Suspense>
       </main>
       <SiteFooter />

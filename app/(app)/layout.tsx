@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { ClientApp } from "@/components/app/client-app";
+import { AppData } from "@/components/app/data-boundary";
 import { AppSkeleton } from "@/components/app/app-skeleton";
 
 /**
- * Stage 2: the signed-in app renders in the browser (mock data lives in
- * localStorage), so the server can't validate instant navigation for it.
- * Remove when Stage 3 moves data to the server.
+ * The signed-in app reads the session on every request, so navigations into
+ * it block on the server. Revisit with `use cache: private` later.
  */
 export const instant = false;
 
@@ -18,7 +17,7 @@ export const metadata: Metadata = {
 export default function AppLayout({ children }: LayoutProps<"/">) {
   return (
     <Suspense fallback={<AppSkeleton />}>
-      <ClientApp>{children}</ClientApp>
+      <AppData>{children}</AppData>
     </Suspense>
   );
 }

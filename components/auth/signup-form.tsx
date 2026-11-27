@@ -8,12 +8,15 @@ import { Button } from "@/components/ui/button";
 import { Checkbox, Field, Input } from "@/components/ui/form";
 import { Spinner } from "@/components/ui/feedback";
 import { signupSchema, type SignupInput } from "@/lib/validation/auth";
-import { delay } from "@/lib/simulate";
-import { AuthHeading, DemoHint } from "./auth-shell";
+import { signUp } from "@/lib/server/auth-actions";
+import { useState } from "react";
+import { Alert } from "@/components/ui/feedback";
+import { AuthHeading } from "./auth-shell";
 import { PasswordInput } from "./password-input";
 
 export function SignupForm() {
   const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
   const {
     register,
     handleSubmit,
@@ -25,8 +28,10 @@ export function SignupForm() {
   });
 
   async function onSubmit(values: SignupInput) {
-    await delay();
-    sessionStorage.setItem("campushold:pending-email", values.email);
+    setError(null);
+    const res = await signUp(values);
+    if (!res.ok) return setError(res.error);
+    if (res.codes) sessionStorage.setItem("campushold:codes", JSON.stringify(res.codes));
     router.push("/verify");
   }
 
@@ -36,6 +41,11 @@ export function SignupForm() {
         title="Create your account"
         description="One account to hire freelancers, offer your services, or both."
       />
+      {error && (
+        <Alert tone="danger" className="mb-5">
+          {error}
+        </Alert>
+      )}
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="First name" error={errors.firstName?.message}>
@@ -80,9 +90,6 @@ export function SignupForm() {
           Log in
         </Link>
       </p>
-      <DemoHint>
-        No account is created yet. You&rsquo;ll continue to email and phone verification, then onboarding.
-      </DemoHint>
     </>
   );
 }

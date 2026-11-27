@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { FreelancerProfile } from "@/components/marketplace/freelancer-profile";
 import { seedUsers } from "@/lib/mock/seed";
 
-// Stage 2: browser-only page (see app/(public)/layout.tsx).
+// Reads the session per request (see app/(public)/layout.tsx).
 export const instant = false;
 
 export const metadata: Metadata = { title: "Freelancer profile" };

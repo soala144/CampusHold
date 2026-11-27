@@ -57,6 +57,8 @@ export interface User {
   isAdmin: boolean;
   verified: { email: boolean; phone: boolean };
   status: "active" | "suspended";
+  /** Finished onboarding (profile and roles chosen). */
+  onboarded?: boolean;
   joinedAt: ISODate;
   freelancer?: FreelancerProfile;
   client?: ClientProfile;

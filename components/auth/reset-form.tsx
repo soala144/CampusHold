@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Alert } from "@/components/ui/feedback";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CheckCircle2 } from "lucide-react";
@@ -8,12 +10,14 @@ import { Button, ButtonLink } from "@/components/ui/button";
 import { Field } from "@/components/ui/form";
 import { Spinner } from "@/components/ui/feedback";
 import { resetSchema } from "@/lib/validation/auth";
-import { delay } from "@/lib/simulate";
+import { resetPassword } from "@/lib/server/auth-actions";
 import { AuthHeading } from "./auth-shell";
 import { PasswordInput } from "./password-input";
 
 export function ResetForm() {
+  const token = useSearchParams().get("token") ?? "";
   const [done, setDone] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const {
     register,
     handleSubmit,
@@ -43,10 +47,17 @@ export function ResetForm() {
   return (
     <>
       <AuthHeading title="Choose a new password" />
+      {(error || !token) && (
+        <Alert tone="danger" className="mb-5">
+          {error ?? "This reset link is missing its token. Request a new one."}
+        </Alert>
+      )}
       <form
         noValidate
-        onSubmit={handleSubmit(async () => {
-          await delay();
+        onSubmit={handleSubmit(async (values) => {
+          setError(null);
+          const res = await resetPassword(token, values);
+          if (!res.ok) return setError(res.error);
           setDone(true);
         })}
         className="flex flex-col gap-4"

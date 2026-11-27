@@ -1,11 +1,16 @@
 "use client";
 
-import { use, type ReactNode } from "react";
-import { browser } from "react-dom";
+import type { ReactNode } from "react";
 import { ToastProvider } from "@/components/ui/toast";
+import { StoreProvider } from "@/components/app/store-provider";
+import type { AppState } from "@/lib/store/state";
 
-/** Browser-only boundary for public pages that read Stage 2 mock data. */
-export function ClientPublic({ children }: { children: ReactNode }) {
-  use(browser("CampusHold's Stage 2 mock data lives in localStorage."));
-  return <ToastProvider>{children}</ToastProvider>;
+export function ClientPublic({ initial, children }: { initial: AppState; children: ReactNode }) {
+  return (
+    <ToastProvider>
+      <StoreProvider initial={initial} poll={false}>
+        {children}
+      </StoreProvider>
+    </ToastProvider>
+  );
 }

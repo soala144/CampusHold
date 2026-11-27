@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { ServiceEditor } from "@/components/services/service-editor";
 import { seedServices } from "@/lib/mock/seed-services";
 
-// Stage 2: browser-only page (see app/(app)/layout.tsx).
+// Reads the session per request (see app/(app)/layout.tsx).
 export const instant = false;
 
 export const metadata: Metadata = { title: "Edit service" };

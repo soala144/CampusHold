@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { Logo } from "@/components/ui/logo";
 import { navLinks } from "./nav-links";
-import { HeaderActions } from "./header-actions";
+import { Suspense } from "react";
+import { GuestActions, HeaderActions } from "./header-actions";
 import { MobileMenu } from "./mobile-menu";
 
 export function SiteHeader() {
@@ -27,7 +28,9 @@ export function SiteHeader() {
 
         <div className="flex items-center gap-2">
           <div className="hidden items-center gap-2 sm:flex">
-            <HeaderActions />
+            <Suspense fallback={<GuestActions />}>
+              <HeaderActions />
+            </Suspense>
           </div>
           <MobileMenu />
         </div>

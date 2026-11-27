@@ -1,20 +1,8 @@
-"use client";
-
 import { LayoutDashboard } from "lucide-react";
 import { ButtonLink } from "@/components/ui/button";
-import { useSignedIn } from "@/lib/store";
+import { getSessionUser } from "@/lib/server/session";
 
-/** Log in / Get started for visitors; Dashboard once signed in. */
-export function HeaderActions() {
-  const signedIn = useSignedIn();
-  if (signedIn) {
-    return (
-      <ButtonLink href="/dashboard" size="sm">
-        <LayoutDashboard />
-        Dashboard
-      </ButtonLink>
-    );
-  }
+export function GuestActions() {
   return (
     <>
       <ButtonLink href="/login" variant="secondary" size="sm">
@@ -24,5 +12,17 @@ export function HeaderActions() {
         Get started
       </ButtonLink>
     </>
+  );
+}
+
+/** Reads the session cookie, so it must render inside a Suspense boundary. */
+export async function HeaderActions() {
+  const user = await getSessionUser().catch(() => null);
+  if (!user) return <GuestActions />;
+  return (
+    <ButtonLink href={user.onboarded ? "/dashboard" : "/onboarding"} size="sm">
+      <LayoutDashboard />
+      {user.onboarded ? "Dashboard" : "Finish setup"}
+    </ButtonLink>
   );
 }

@@ -4,7 +4,6 @@ import { useRouter } from "next/navigation";
 import { RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/feedback";
-import { resetState } from "@/lib/store";
 
 export default function AppError({ error, retry }: { error: Error; retry: () => void }) {
   const router = useRouter();
@@ -15,15 +14,9 @@ export default function AppError({ error, retry }: { error: Error; retry: () => 
       </Alert>
       <div className="flex gap-2">
         <Button onClick={() => retry()}>Try again</Button>
-        <Button
-          variant="secondary"
-          onClick={() => {
-            resetState();
-            router.push("/dashboard");
-          }}
-        >
+        <Button variant="secondary" onClick={() => router.push("/dashboard")}>
           <RotateCcw />
-          Reset demo data
+          Go to dashboard
         </Button>
       </div>
     </div>

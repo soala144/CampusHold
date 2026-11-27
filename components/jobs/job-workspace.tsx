@@ -210,7 +210,7 @@ export function JobWorkspace() {
             <Progress job={job} />
           </Panel>
 
-          <SimulationPanel job={job} role={role} />
+          <SimulationPanel job={job} />
         </aside>
       </div>
     </Page>

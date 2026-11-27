@@ -16,17 +16,19 @@ import type {
   PayoutAccount,
   Service,
   ServicePackage,
+  ServiceCover,
   ServiceStatus,
   Transaction,
   User,
 } from "@/lib/domain/types";
 import { formatMoney } from "@/lib/format";
+import { newId } from "./ids";
 import type { AppState, Mode } from "./state";
 
 type Op<T = void> = { state: AppState; value: T } | { error: string };
 
 const now = () => new Date().toISOString();
-const newId = (prefix: string) => `${prefix}_${crypto.randomUUID().slice(0, 8)}`;
+
 
 /* ---------- small helpers ---------- */
 
@@ -491,6 +493,7 @@ export interface ServiceInput {
   packages: Omit<ServicePackage, "id">[];
   faq: { q: string; a: string }[];
   images: Attachment[];
+  cover?: ServiceCover;
 }
 
 export function saveService(freelancerId: string, input: ServiceInput, status: ServiceStatus, serviceId?: string) {
@@ -581,10 +584,4 @@ export function requestService(
     const next = withJob(created.state, created.value.id, (j) => ({ ...j, serviceId: svc.id, packageName: pkg.name }));
     return { state: { ...next, mode: "client" }, value: findJob(next, created.value.id)! };
   };
-}
-
-/* ---------- session (demo) ---------- */
-
-export function setSignedIn(signedIn: boolean) {
-  return (s: AppState): Op => ({ state: { ...s, signedIn }, value: undefined });
 }

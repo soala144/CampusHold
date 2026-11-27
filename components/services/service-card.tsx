@@ -66,7 +66,7 @@ export function ServiceCover({
     return (
       <div className={cn("relative overflow-hidden bg-surface", className)} style={style}>
         <Image
-          loader={unsplashLoader}
+          {...(service.cover.url.startsWith("https://images.unsplash.com/") ? { loader: unsplashLoader } : { unoptimized: true })}
           src={service.cover.url}
           alt={service.cover.alt}
           fill
